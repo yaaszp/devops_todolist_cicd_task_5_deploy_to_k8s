@@ -64,7 +64,7 @@ jobs:
           path: ${{ github.workspace }}/helm-charts
 
   docker-ci:
-    name: Build and Push Image
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
     if: ${{ github.ref_name == 'main' }}
     needs: python-ci
@@ -121,17 +121,51 @@ jobs:
 
   deploy-helm:
     name: Deploy Helm
-    runs-on: ubuntu-latest
     needs: [docker-ci, helm-ci]
+    runs-on: ubuntu-latest
+    environment: development
+
 
     steps:
 
-    - name: Download helm artifact
+    - name: Download helm package
       uses: actions/download-artifact@v4
       with:
         name: helm-package
         path: .
 
+    - name: Download helm artifact
+      uses: actions/download-artifact@v4
+      with:
+        name: helm-artifacts
+        path: .
+
     - name: Set Up Helm
       uses: azure/setup-helm@v4.2.0
+
+    - name: Set Up Kubectl
+      uses: azure/setup-kubectl@v4
+
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Azure set context
+      uses: azure/aks-set-context@v3
+      with:
+        cluster-name: ${{ vars.AZURE_CLUSTER_NAME }}
+        resource-group: ${{ vars.AZURE_RESOURCE_GROUP }}
+
+    - name: Deploy Helm to Development
+      run: |
+        helm upgrade --install --atomic --wait --timeout 3600s --debug todoapp ./todoapp-*.tgz \
+        -f ./todoapp/values.yaml \
+        --set mysql.secrets.MYSQL_ROOT_PASSWORD="${{ secrets.MYSQL_ROOT_PASSWORD }}" \
+        --set mysql.secrets.MYSQL_USER="${{ secrets.MYSQL_USER }}" \
+        --set mysql.secrets.MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
+        --set todoapp.secrets.DB_USER="${{ secrets.DB_USER }}" \
+        --set todoapp.secrets.DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
+        --set todoapp.secrets.DB_HOST="${{ secrets.DB_HOST }}" \
+
 
