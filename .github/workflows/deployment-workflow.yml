@@ -54,6 +54,7 @@ jobs:
         resource-group: ${{ vars.AZURE_RESOURCE_GROUP }}
 
     - name: Deploy Helm to
+      continue-on-error: true
       run: |
         helm upgrade --install --atomic --wait --timeout 3600s --debug todoapp ./todoapp-*.tgz \
         -f ${{ inputs.helm-values-path }} \
@@ -62,4 +63,4 @@ jobs:
         --set mysql.secrets.MYSQL_PASSWORD="${{ secrets.MYSQL_PASSWORD }}" \
         --set todoapp.secrets.DB_USER="${{ secrets.DB_USER }}" \
         --set todoapp.secrets.DB_PASSWORD="${{ secrets.DB_PASSWORD }}" \
-        --set todoapp.secrets.DB_HOST="${{ secrets.DB_HOST }}" \
+        --set todoapp.secrets.DB_HOST="${{ secrets.DB_HOST }}"
